@@ -7,6 +7,7 @@ public class User {
     @Column(unique = true) public String username;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) public String password;
     public String name;
-    public String role;       // ADMIN, HOD, FACULTY, STUDENT, ACCOUNTS
+    public String role;
     public String department;
+    public Boolean mustChange;
 }
