@@ -1,0 +1,7 @@
+package com.campus;
+import jakarta.persistence.*;
+@Entity
+public class Department {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) public Long id;
+    public String name;
+}
