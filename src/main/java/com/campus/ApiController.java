@@ -17,7 +17,7 @@ public class ApiController {
     public ResponseEntity<?> login(@RequestBody Map<String, String> b) {
         User u = users.findByUsername(b.get("username"));
         if (u != null && u.password.equals(b.get("password"))) return ResponseEntity.ok(u);
-        return ResponseEntity.status(401).body(Map.of("error", "Galat username ya password"));
+        return ResponseEntity.status(401).body(Map.of("error", "Incorrect username or password"));
     }
 
     // ---- Users (Admin / HOD / Faculty / Student / Accounts) ----

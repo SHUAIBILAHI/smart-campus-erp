@@ -4,7 +4,7 @@ const $ = id => document.getElementById(id);
 const api = (p, m = 'GET', b) => fetch('/api' + p, { method: m, headers: { 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined })
   .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw d; return d; });
 const logout = () => { sessionStorage.clear(); location = 'index.html'; };
-const table = (heads, rows) => `<div class="tbl"><table><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr>${rows.join('') || `<tr><td colspan="${heads.length}">Koi data nahi</td></tr>`}</table></div>`;
+const table = (heads, rows) => `<div class="tbl"><table><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr>${rows.join('') || `<tr><td colspan="${heads.length}">No data available</td></tr>`}</table></div>`;
 const badge = s => `<span class="badge ${s}">${s}</span>`;
 
 // ---------- Views ----------
@@ -19,7 +19,7 @@ async function dashboard() {
     <div class="card"><h3>Welcome, ${me.name}</h3><p>Department: ${me.department}</p></div>`;
   }
   return `<div class="grid">${Object.entries(s).map(([k, v]) => `<div class="stat"><b>${v}</b><small>${k}</small></div>`).join('')}</div>
-  <div class="card"><h3>Welcome, ${me.name}</h3><p>Aap <b>${me.role}</b> panel use kar rahe hain.</p></div>`;
+  <div class="card"><h3>Welcome, ${me.name}</h3><p>You are using the <b>${me.role}</b> panel.</p></div>`;
 }
 
 async function departments() {
@@ -57,7 +57,7 @@ async function markAttendance() {
   <br><button onclick="saveAtt()">Save Attendance</button> <span id="am"></span></div>`;
 }
 async function saveAtt() {
-  if (!$('as').value) return alert('Subject likho');
+  if (!$('as').value) return alert('Please enter a subject');
   const list = [...document.querySelectorAll('.chk')].map(c => ({ studentUsername: c.dataset.u, studentName: c.dataset.n, subject: $('as').value, date: $('ad').value, present: c.checked }));
   await api('/attendance', 'POST', list); $('am').textContent = '✅ Saved!';
 }
@@ -75,7 +75,7 @@ async function applyLeave() {
   <div class="card"><h3>My Leave Requests</h3>${table(['From', 'To', 'Reason', 'Status'], l.map(x => `<tr><td>${x.fromDate}</td><td>${x.toDate}</td><td>${x.reason}</td><td>${badge(x.status)}</td></tr>`))}</div>`;
 }
 async function sendLeave() {
-  if (!$('lf').value || !$('lr').value) return alert('Date aur reason bharo');
+  if (!$('lf').value || !$('lr').value) return alert('Please enter the date and reason');
   await api('/leaves', 'POST', { applicant: me.username, applicantName: me.name, applicantRole: me.role, fromDate: $('lf').value, toDate: $('lt').value || $('lf').value, reason: $('lr').value });
   go(cur);
 }
@@ -123,11 +123,11 @@ async function modView(key) {
 }
 async function addRec(key) {
   const d = MOD[key], o = {}; for (const f of d.fields) o[f.k] = $('f_' + f.k).value;
-  if (!Object.values(o)[0]) return alert('Pehli field bharna zaruri hai');
+  if (!Object.values(o)[0]) return alert('Please fill in the first field');
   await api('/records', 'POST', { module: key, owner: me.username, ownerName: me.name, ownerRole: me.role, data: JSON.stringify(o) }); go(cur);
 }
 const recSt = async (id, s) => { await api(`/records/${id}/status/${s}`, 'PUT'); go(cur); };
-const recDel = async id => { if (confirm('Delete karein?')) { await api('/records/' + id, 'DELETE'); go(cur); } };
+const recDel = async id => { if (confirm('Delete this record?')) { await api('/records/' + id, 'DELETE'); go(cur); } };
 const flt = i => { const q = i.value.toLowerCase(); i.parentElement.querySelectorAll('tr').forEach((r, x) => { if (x) r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none'; }); };
 
 // ================= MODULE DEFINITIONS =================
@@ -252,32 +252,32 @@ VIEWS['Online Examination'] = async () => {
   const [t, res] = await Promise.all([api('/records?module=Test'), api('/records?module=TestResult')]);
   window._q = t.map(r => JSON.parse(r.data));
   const mine = res.filter(r => r.owner == me.username).map(r => JSON.parse(r.data));
-  return `<div class="card"><h3>Online Test</h3>${_q.length ? _q.map((x, i) => `<p><b>Q${i + 1}. ${x.question}</b> <small>(${x.subject})</small></p>${['a', 'b', 'c', 'd'].map(o => `<label style="display:block;font-size:14px;color:inherit"><input type="radio" name="q${i}" value="${o.toUpperCase()}" style="width:auto;margin:0 8px 0 0">${x[o]}</label>`).join('')}`).join('<br>') + '<br><button onclick="submitTest()">Submit Test</button>' : 'Abhi koi test nahi hai'}</div><div class="card"><h3>My Past Results</h3>${table(['Score', 'Total'], mine.map(m => `<tr><td>${m.score}</td><td>${m.total}</td></tr>`))}</div>`;
+  return `<div class="card"><h3>Online Test</h3>${_q.length ? _q.map((x, i) => `<p><b>Q${i + 1}. ${x.question}</b> <small>(${x.subject})</small></p>${['a', 'b', 'c', 'd'].map(o => `<label style="display:block;font-size:14px;color:inherit"><input type="radio" name="q${i}" value="${o.toUpperCase()}" style="width:auto;margin:0 8px 0 0">${x[o]}</label>`).join('')}`).join('<br>') + '<br><button onclick="submitTest()">Submit Test</button>' : 'No tests available right now'}</div><div class="card"><h3>My Past Results</h3>${table(['Score', 'Total'], mine.map(m => `<tr><td>${m.score}</td><td>${m.total}</td></tr>`))}</div>`;
 };
 async function submitTest() {
   let s = 0; _q.forEach((x, i) => { const c = document.querySelector(`input[name=q${i}]:checked`); if (c && c.value == x.correct) s++; });
   await api('/records', 'POST', { module: 'TestResult', owner: me.username, ownerName: me.name, ownerRole: me.role, data: JSON.stringify({ student: me.username, score: s, total: _q.length }) });
-  alert(`Aapka score: ${s}/${_q.length}`); go(cur);
+  alert(`Your score: ${s}/${_q.length}`); go(cur);
 }
 
 // ---- QR / code attendance ----
-VIEWS['QR Code Attendance'] = () => `<div class="card"><h3>Attendance Code Generate Karein</h3><div class="row"><input id="qs" placeholder="Subject"><button onclick="qrNew()">Generate Code</button></div><h1 id="qc" style="letter-spacing:8px;margin-top:16px"></h1><small>Code 10 minute valid rahega. Students 'Scan QR / Enter Code' mein ye code daalenge.</small></div>`;
+VIEWS['QR Code Attendance'] = () => `<div class="card"><h3>Generate Attendance Code</h3><div class="row"><input id="qs" placeholder="Subject"><button onclick="qrNew()">Generate Code</button></div><h1 id="qc" style="letter-spacing:8px;margin-top:16px"></h1><small>The code is valid for 10 minutes. Students enter it under 'Scan QR / Enter Code'.</small></div>`;
 async function qrNew() { $('qc').textContent = (await api('/qr/new', 'POST', { subject: $('qs').value })).code; }
 VIEWS['Scan QR / Enter Code'] = () => `<div class="card"><h3>Attendance Code</h3><div class="row"><input id="qk" placeholder="6-digit code"><button onclick="qrMark()">Mark Present</button></div><div id="qm" style="margin-top:10px"></div></div>`;
-async function qrMark() { try { await api('/qr/mark', 'POST', { code: $('qk').value, username: me.username }); $('qm').innerHTML = '✅ Attendance mark ho gayi'; } catch (e) { $('qm').innerHTML = '❌ ' + (e.error || 'Error'); } }
+async function qrMark() { try { await api('/qr/mark', 'POST', { code: $('qk').value, username: me.username }); $('qm').innerHTML = '✅ Attendance marked successfully'; } catch (e) { $('qm').innerHTML = '❌ ' + (e.error || 'Error'); } }
 
 // ---- Profile / ID / Security / Permissions ----
 VIEWS['Digital Student ID Card'] = () => `<div class="idcard"><h3>🎓 Smart Campus</h3><div class="av">${me.name[0]}</div><h2>${me.name}</h2><p>${me.role} • ${me.department}</p><p>ID: ${me.username.toUpperCase()}</p><div class="bars">${[...me.username].map(c => `<i style="height:${20 + c.charCodeAt(0) % 25}px"></i>`).join('')}</div></div><br><button onclick="window.print()">🖨️ Print</button>`;
 VIEWS['My Profile'] = () => `<div class="card"><h3>${me.name}</h3><p>Username: ${me.username}<br>Role: ${me.role}<br>Department: ${me.department}</p></div><div class="card"><h3>Change Password</h3><div class="row"><input id="np" type="password" placeholder="New password"><button onclick="chPw()">Update</button></div></div>`;
-async function chPw() { if (!$('np').value) return; await api(`/users/${me.id}/password`, 'PUT', { password: $('np').value }); alert('Password update ho gaya'); $('np').value = ''; }
-VIEWS['Security Management'] = async () => `<div class="card"><h3>Reset User Password</h3><div class="row"><select id="su">${(await api('/users')).map(x => `<option value="${x.id}">${x.username} (${x.role})</option>`).join('')}</select><input id="sp" placeholder="New password"><button onclick="resetPw()">Reset</button></div></div><div class="card"><p>Login aur activity details 'Audit Logs' mein dekhein.</p></div>`;
-async function resetPw() { if (!$('sp').value) return; await api(`/users/${$('su').value}/password`, 'PUT', { password: $('sp').value }); alert('Password reset ho gaya'); }
+async function chPw() { if (!$('np').value) return; await api(`/users/${me.id}/password`, 'PUT', { password: $('np').value }); alert('Password updated successfully'); $('np').value = ''; }
+VIEWS['Security Management'] = async () => `<div class="card"><h3>Reset User Password</h3><div class="row"><select id="su">${(await api('/users')).map(x => `<option value="${x.id}">${x.username} (${x.role})</option>`).join('')}</select><input id="sp" placeholder="New password"><button onclick="resetPw()">Reset</button></div></div><div class="card"><p>View login and activity details in 'Audit Logs'.</p></div>`;
+async function resetPw() { if (!$('sp').value) return; await api(`/users/${$('su').value}/password`, 'PUT', { password: $('sp').value }); alert('Password reset successfully'); }
 VIEWS['Role & Permission Management'] = () => `<div class="card">${table(['Role', 'Accessible Modules'], ALL.map(r => `<tr><td><b>${r}</b></td><td>${MENU[r].filter(x => x[0] != '#').join(', ')}</td></tr>`))}</div>`;
 
 // ---- Smart features ----
 VIEWS['Smart Search'] = () => `<div class="card"><div class="row"><input id="sq" placeholder="Student, faculty, notice, event, job..." onkeydown="if(event.key=='Enter')doSearch()"><button onclick="doSearch()">Search</button></div></div><div id="sr"></div>`;
 async function doSearch() { const r = await api('/search?q=' + encodeURIComponent($('sq').value)); $('sr').innerHTML = `<div class="card">${table(['Type', 'Result'], r.map(x => `<tr><td>${x.type}</td><td>${x.text}</td></tr>`))}</div>`; }
-VIEWS['AI College Assistant'] = () => `<div class="card"><div id="chat" class="chat"><div class="bot">Namaste ${me.name}! Attendance, fees, leave, exam, placement ke baare mein puchiye 🙂</div></div><div class="row" style="margin-top:10px"><input id="cm" placeholder="Apna sawal likhiye..." onkeydown="if(event.key=='Enter')sendChat()"><button onclick="sendChat()">Send</button></div></div>`;
+VIEWS['AI College Assistant'] = () => `<div class="card"><div id="chat" class="chat"><div class="bot">Hello ${me.name}! Ask me about attendance, fees, leave, exams or placements 🙂</div></div><div class="row" style="margin-top:10px"><input id="cm" placeholder="Type your question..." onkeydown="if(event.key=='Enter')sendChat()"><button onclick="sendChat()">Send</button></div></div>`;
 async function sendChat() {
   const m = $('cm').value; if (!m) return; const c = $('chat'); c.innerHTML += `<div class="me">${m}</div>`; $('cm').value = '';
   const r = await api('/chat', 'POST', { username: me.username, message: m }); c.innerHTML += `<div class="bot">${r.reply}</div>`; c.scrollTop = c.scrollHeight;
@@ -286,11 +286,11 @@ VIEWS['AI Question Generator'] = () => `<div class="card"><div class="row"><inpu
 function genQ() {
   const t = $('qt').value || 'Topic', T = [`Define ${t} with a suitable example.`, `Explain the need and importance of ${t}.`, `List the advantages and disadvantages of ${t}.`, `Differentiate ${t} from a related concept.`, `Draw a neat diagram to explain ${t}.`, `Write a short note on ${t}.`, `Explain the working of ${t} step by step.`, `What are the real-life applications of ${t}?`];
   const n = Math.min(+$('qn').value || 5, T.length);
-  $('qo').innerHTML = `<div class="card"><h3>Question Paper: ${t}</h3>${T.slice(0, n).map((q, i) => `<p>Q${i + 1}. ${q}</p>`).join('')}<br><small>Template-based generator hai. Baad mein AI API se connect kar sakte hain.</small></div>`;
+  $('qo').innerHTML = `<div class="card"><h3>Question Paper: ${t}</h3>${T.slice(0, n).map((q, i) => `<p>Q${i + 1}. ${q}</p>`).join('')}<br><small>This is a template-based generator. It can be connected to an AI API later.</small></div>`;
 }
 async function notices() {
   const n = (await api('/records?module=Notice')).slice(-3).reverse();
-  return `<div class="card"><h3>📢 Latest Notices</h3>${n.map(x => { const d = JSON.parse(x.data); return `<p><b>${d.title}</b> — ${d.message}</p>`; }).join('') || 'Koi notice nahi'}</div>`;
+  return `<div class="card"><h3>📢 Latest Notices</h3>${n.map(x => { const d = JSON.parse(x.data); return `<p><b>${d.title}</b> — ${d.message}</p>`; }).join('') || 'No notices'}</div>`;
 }
 
 // ================= ROLE MENUS =================
@@ -315,7 +315,7 @@ async function go(name) {
   cur = name; $('title').textContent = name;
   document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('on', a.dataset.t == name));
   try { let h = await VIEWS[name](); if (name == 'Dashboard') h += await notices(); $('view').innerHTML = h; }
-  catch (e) { $('view').innerHTML = '<div class="card">Error: ' + (e.error || e.message || 'load nahi hua') + '</div>'; }
+  catch (e) { $('view').innerHTML = '<div class="card">Error: ' + (e.error || e.message || 'failed to load') + '</div>'; }
 }
 $('who').textContent = `${me.name} (${me.role})`;
 $('menu').innerHTML = MENU[me.role].map(t => t[0] == '#' ? `<div class="grp">${t.slice(1)}</div>` : `<a data-t="${t}" onclick="go(this.dataset.t)">${t}</a>`).join('');

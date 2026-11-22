@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Smart Campus & Student Management System</title><link rel="stylesheet" href="style.css"></head>
 <body><div class="login-wrap"><div class="login-box">
-<h1>🎓 Smart Campus & Student Management System</h1><p>Apne account se login karein</p>
+<h1>🎓 Smart Campus & Student Management System</h1><p>Sign in to your account</p>
 <input id="u" placeholder="Username"><input id="p" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')login()">
 <button class="full" onclick="login()">Login</button><div class="err" id="e"></div><p style="margin-top:10px;font-size:13px"><a href="#" onclick="forgot()">Forgot Password?</a></p>
 <div class="demo"><b>Demo Logins:</b><br>Admin: admin / admin123<br>HOD: hod1 / hod123<br>Faculty: fac1 / fac123<br>Student: stu1 / stu123<br>Accounts: acc1 / acc123</div>
@@ -10,13 +10,13 @@
 <script>
 async function login(){
   const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u.value,password:p.value})});
-  if(!r.ok){e.textContent='Galat username ya password';return}
+  if(!r.ok){e.textContent='Incorrect username or password';return}
   const usr=await r.json();sessionStorage.setItem('u',JSON.stringify(usr));await fetch('/api/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({owner:usr.username,text:'Logged in'})});location='app.html';
 }
 async function forgot(){
   const un=prompt('Username:'),nm=prompt('Registered full name:'),np=prompt('New password:');
   if(!un||!nm||!np)return;
   const r=await fetch('/api/forgot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:un,name:nm,newPassword:np})});
-  alert(r.ok?'Password change ho gaya, ab login karein':'Details match nahi hui');
+  alert(r.ok?'Password changed. Please log in.':'Details do not match');
 }
 </script></body></html>

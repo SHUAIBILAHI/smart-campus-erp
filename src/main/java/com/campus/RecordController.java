@@ -47,7 +47,7 @@ public class RecordController {
     @PostMapping("/forgot") public ResponseEntity<?> forgot(@RequestBody Map<String, String> b) {
         User u = users.findByUsername(b.get("username"));
         if (u == null || b.get("name") == null || !u.name.equalsIgnoreCase(b.get("name").trim()))
-            return ResponseEntity.badRequest().body(Map.of("error", "Details match nahi hui"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Details do not match"));
         u.password = b.get("newPassword"); users.save(u); audit(u.username, "Password reset (forgot password)");
         return ResponseEntity.ok(Map.of("ok", true));
     }
@@ -60,7 +60,7 @@ public class RecordController {
     }
     @PostMapping("/qr/mark") public ResponseEntity<?> qrMark(@RequestBody Map<String, String> b) {
         String[] c = codes.get(b.get("code"));
-        if (c == null || Long.parseLong(c[1]) < System.currentTimeMillis()) return ResponseEntity.badRequest().body(Map.of("error", "Code galat ya expire ho gaya"));
+        if (c == null || Long.parseLong(c[1]) < System.currentTimeMillis()) return ResponseEntity.badRequest().body(Map.of("error", "Invalid or expired code"));
         User u = users.findByUsername(b.get("username"));
         Attendance a = new Attendance(); a.studentUsername = u.username; a.studentName = u.name; a.subject = c[0];
         a.date = java.time.LocalDate.now().toString(); a.present = true; att.save(a);
@@ -84,19 +84,19 @@ public class RecordController {
         String u = b.get("username"), m = b.getOrDefault("message", "").toLowerCase(), r;
         if (m.contains("attend")) {
             List<Attendance> a = att.findByStudentUsername(u); long p = a.stream().filter(x -> x.present).count();
-            r = a.isEmpty() ? "Abhi aapki attendance record nahi hui hai." : "Aapki attendance " + (p * 100 / a.size()) + "% hai (" + p + "/" + a.size() + " classes)." + (p * 100 / a.size() < 75 ? " ⚠️ 75% se kam hai, regular aaiye." : "");
+            r = a.isEmpty() ? "No attendance has been recorded for you yet." : "Your attendance is " + (p * 100 / a.size()) + "% (" + p + "/" + a.size() + " classes)." + (p * 100 / a.size() < 75 ? " ⚠️ This is below 75%. Please attend classes regularly." : "");
         } else if (m.contains("fee")) {
             List<Fee> d = fees.findByStudentUsername(u).stream().filter(x -> !x.paid).toList();
-            r = d.isEmpty() ? "Aapki koi fee pending nahi hai ✅" : d.size() + " fee pending hai, total ₹" + (long) d.stream().mapToDouble(x -> x.amount).sum() + ". 'Fee Details & Payment' mein pay karein.";
+            r = d.isEmpty() ? "You have no pending fees ✅" : d.size() + " pending fee(s), total ₹" + (long) d.stream().mapToDouble(x -> x.amount).sum() + ". Pay under 'Fee Details & Payment'.";
         } else if (m.contains("leave")) {
             long p = leaves.findByApplicant(u).stream().filter(x -> "PENDING".equals(x.status)).count();
-            r = "Aapki " + p + " leave request pending hai. Nayi leave ke liye 'Apply for Leave' kholiye.";
-        } else if (m.contains("exam") || m.contains("test")) r = "Tests 'Online Examination' menu mein milenge.";
-        else if (m.contains("result") || m.contains("mark")) r = "Marks 'Results & Marksheet' mein dekhein.";
-        else if (m.contains("placement") || m.contains("job") || m.contains("intern")) r = "Job Opportunities, Internship Opportunities aur Placement Drives HOD ke Placement section mein publish hote hain.";
-        else if (m.contains("library") || m.contains("book")) r = "Library Management mein aapki issued books dikhengi.";
-        else if (m.contains("hello") || m.equals("hi")) r = "Namaste! Main aapka College Assistant hoon 🙂";
-        else r = "Main attendance, fees, leave, exam, results, placement aur library ke baare mein bata sakta hoon.";
+            r = "You have " + p + " leave request(s) pending. To apply for leave, open 'Apply for Leave'.";
+        } else if (m.contains("exam") || m.contains("test")) r = "Tests are available under 'Online Examination'.";
+        else if (m.contains("result") || m.contains("mark")) r = "View your marks under 'Results & Marksheet'.";
+        else if (m.contains("placement") || m.contains("job") || m.contains("intern")) r = "Job Opportunities, Internship Opportunities and Placement Drives are published in the Placement section.";
+        else if (m.contains("library") || m.contains("book")) r = "Your issued books are shown under 'Library Management'.";
+        else if (m.contains("hello") || m.equals("hi")) r = "Hello! I am your College Assistant 🙂";
+        else r = "I can help with attendance, fees, leave, exams, results, placements and the library.";
         return Map.of("reply", r);
     }
 }

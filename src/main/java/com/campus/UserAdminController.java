@@ -22,8 +22,8 @@ public class UserAdminController {
     @PostMapping("/users/create")
     public ResponseEntity<?> create(@RequestBody Map<String, String> b) {
         String role = b.get("role"), name = b.get("name"), pass = b.get("password");
-        if (name == null || name.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Naam likhna zaruri hai"));
-        if (role == null || !ROLES.contains(role)) return ResponseEntity.badRequest().body(Map.of("error", "Role galat hai"));
+        if (name == null || name.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "Name is required"));
+        if (role == null || !ROLES.contains(role)) return ResponseEntity.badRequest().body(Map.of("error", "Invalid role"));
         if (pass == null || pass.trim().length() < 4) pass = "Temp@" + (1000 + new Random().nextInt(9000));
         String base = prefix(role) + Year.now().getValue();
         int n = users.findByRole(role).size() + 1;
@@ -40,8 +40,8 @@ public class UserAdminController {
     public ResponseEntity<?> change(@PathVariable Long id, @RequestBody Map<String, String> b) {
         User u = users.findById(id).orElseThrow();
         String np = b.get("password");
-        if (np == null || np.length() < 6) return ResponseEntity.badRequest().body(Map.of("error", "Password kam se kam 6 characters ka hona chahiye"));
-        if (np.equals(u.password)) return ResponseEntity.badRequest().body(Map.of("error", "Naya password purane jaisa nahi ho sakta"));
+        if (np == null || np.length() < 6) return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 6 characters"));
+        if (np.equals(u.password)) return ResponseEntity.badRequest().body(Map.of("error", "New password cannot be the same as the old password"));
         u.password = np; u.mustChange = false; users.save(u);
         return ResponseEntity.ok(Map.of("ok", true));
     }
