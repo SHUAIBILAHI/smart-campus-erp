@@ -8,6 +8,15 @@ public class DataSeeder implements CommandLineRunner {
     public DataSeeder(UserRepo u, DeptRepo d) { users = u; depts = d; }
     public void run(String... args) {
         if (depts.count() == 0) for (String d : new String[]{"Computer Science", "Mechanical", "Electronics"}) { Department x = new Department(); x.name = d; depts.save(x); }
+        for (Department x : depts.findAll()) {
+            if (x.durationYears != null && x.semesters != null) continue;
+            String n = x.name == null ? "" : x.name.toLowerCase();
+            boolean two = n.contains("mca") || n.contains("mba") || n.contains("m.tech") || n.contains("mtech") || n.contains("msc") || n.contains("m.sc");
+            boolean three = n.contains("bca") || n.contains("bba") || n.contains("bsc") || n.contains("b.sc") || n.contains("bcom") || n.contains("b.com") || n.contains("diploma");
+            x.durationYears = two ? 2.0 : three ? 3.0 : 4.0;
+            x.semesters = (int) (x.durationYears * 2);
+            depts.save(x);
+        }
         add("admin", "admin123", "Administrator", "ADMIN");
         add("hod1", "hod123", "Dr. Sharma (HOD)", "HOD");
         add("fac1", "fac123", "Prof. Verma", "FACULTY");

@@ -32,6 +32,9 @@ public class UserAdminController {
         User u = new User();
         u.username = id; u.password = pass.trim(); u.name = name.trim(); u.role = role;
         u.department = b.getOrDefault("department", "-"); u.mustChange = true;
+        u.admissionDate = b.get("admissionDate");
+        u.academicSession = b.get("academicSession");
+        try { u.semester = Integer.valueOf(b.get("semester")); } catch (Exception e) { u.semester = null; }
         users.save(u);
         return ResponseEntity.ok(Map.of("username", id, "password", u.password, "name", u.name, "role", role));
     }
