@@ -7,3 +7,4 @@ interface AttRepo extends JpaRepository<Attendance, Long> { List<Attendance> fin
 interface LeaveRepo extends JpaRepository<LeaveRequest, Long> { List<LeaveRequest> findByApplicant(String a); List<LeaveRequest> findByApproverRole(String r); }
 interface FeeRepo extends JpaRepository<Fee, Long> { List<Fee> findByStudentUsername(String u); }
 interface RecRepo extends JpaRepository<Rec, Long> { List<Rec> findByModule(String m); }
+interface SubjectRepo extends JpaRepository<Subject, Long> { }

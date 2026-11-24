@@ -15,7 +15,8 @@ public class StudentProfileController {
         m.put("admissionDate", u.admissionDate); m.put("academicSession", u.academicSession); m.put("semester", u.semester);
         m.put("fatherName", u.fatherName); m.put("motherName", u.motherName); m.put("mobile", u.mobile); m.put("email", u.email);
         m.put("guardianName", u.guardianName); m.put("parentsMobile", u.parentsMobile);
-        m.put("addressCorrespondence", u.addressCorrespondence); m.put("addressPermanent", u.addressPermanent); m.put("photo", u.photo);
+        m.put("addressCorrespondence", u.addressCorrespondence); m.put("addressPermanent", u.addressPermanent); m.put("dob", u.dob); m.put("hostelRequired", u.hostelRequired); m.put("roomNo", u.roomNo);
+        m.put("photo", u.photo);
         return m;
     }
 
@@ -30,6 +31,9 @@ public class StudentProfileController {
         if (b.containsKey("parentsMobile")) u.parentsMobile = b.get("parentsMobile");
         if (b.containsKey("addressCorrespondence")) u.addressCorrespondence = b.get("addressCorrespondence");
         if (b.containsKey("addressPermanent")) u.addressPermanent = b.get("addressPermanent");
+        if (b.containsKey("dob")) u.dob = b.get("dob");
+        if (b.containsKey("hostelRequired")) u.hostelRequired = Boolean.valueOf(b.get("hostelRequired"));
+        if (b.containsKey("roomNo")) u.roomNo = b.get("roomNo");
         if (b.containsKey("photo")) u.photo = b.get("photo");
         users.save(u);
         return Map.of("ok", true);

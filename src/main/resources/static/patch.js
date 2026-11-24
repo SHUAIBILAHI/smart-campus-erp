@@ -186,7 +186,7 @@ async function openStudent(id) {
   const adm = me.role == 'ADMIN';
   page(`Student Record › ${p.name}`, 'reopen()', `<div class="card"><div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">${photo}<div><h2>${p.name}</h2><p style="color:#64748b">${p.username} • ${p.department}</p></div></div>
     <h3 style="margin-top:20px">Academic Details</h3><table class="dl">${row('Course', p.department)}${row('Academic Session', p.academicSession)}${row('Batch', p.academicSession ? p.academicSession.slice(0, 4) : '')}${row('Current Semester', p.semester)}${row('Admission Date', p.admissionDate)}</table>
-    <h3 style="margin-top:20px">Personal Details</h3><table class="dl">${row('Father Name', p.fatherName)}${row('Mother Name', p.motherName)}${row('Student Mobile No', p.mobile)}${row('Email ID', p.email)}${row('Guardian Name', p.guardianName)}${row('Parents Mobile No', p.parentsMobile)}${row('Correspondence Address', p.addressCorrespondence)}${row('Permanent Address', p.addressPermanent)}</table>
+    <h3 style="margin-top:20px">Personal Details</h3><table class="dl">${row('Date of Birth', p.dob)}${row('Hostel Required', p.hostelRequired ? 'Yes' : 'No')}${row('Hostel Room No', p.roomNo)}${row('Father Name', p.fatherName)}${row('Mother Name', p.motherName)}${row('Student Mobile No', p.mobile)}${row('Email ID', p.email)}${row('Guardian Name', p.guardianName)}${row('Parents Mobile No', p.parentsMobile)}${row('Correspondence Address', p.addressCorrespondence)}${row('Permanent Address', p.addressPermanent)}</table>
     <div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap"><button onclick="window.print()">🖨️ Print</button>${adm ? `<button class="green" onclick="editStudent()">✏️ Edit</button><button class="red" onclick="deleteStudent(${p.id})">🗑️ Delete</button>` : ''}</div></div>`);
 }
 function editStudent() {
@@ -194,7 +194,7 @@ function editStudent() {
   const f = (id, label, val, type) => `<div><label>${label}</label><input id="${id}" type="${type || 'text'}" value="${q(val)}"></div>`;
   $('tilebody').innerHTML = `<div class="card"><h3>Complete Student Details — ${p.name}</h3><div class="row">
     ${f('pf_father', 'Father Name', p.fatherName)}${f('pf_mother', 'Mother Name', p.motherName)}${f('pf_mobile', 'Student Mobile No', p.mobile, 'tel')}${f('pf_email', 'Email ID', p.email, 'email')}
-    ${f('pf_guardian', 'Guardian Name (optional)', p.guardianName)}${f('pf_pmobile', 'Parents Mobile No', p.parentsMobile, 'tel')}</div>
+    ${f('pf_guardian', 'Guardian Name (optional)', p.guardianName)}${f('pf_pmobile', 'Parents Mobile No', p.parentsMobile, 'tel')}${f('pf_dob', 'Date of Birth', p.dob, 'date')}<div><label>Hostel Required</label><select id="pf_hostel"><option value="false">No</option><option value="true" ${p.hostelRequired ? 'selected' : ''}>Yes</option></select></div></div>
     <div class="row" style="margin-top:12px"><div><label>Correspondence Address</label><textarea id="pf_caddr" rows="3">${p.addressCorrespondence || ''}</textarea></div>
     <div><label>Permanent Address</label><textarea id="pf_paddr" rows="3">${p.addressPermanent || ''}</textarea><label style="margin-top:6px"><input type="checkbox" style="width:auto;margin:0 6px 0 0" onchange="sameAddr(this)">Same as correspondence address</label></div></div>
     <div style="margin-top:12px"><label>Photo (optional)</label><input id="pf_photo" type="file" accept="image/*"></div>
@@ -211,12 +211,13 @@ function readPhoto(file) {
 }
 async function saveStudent() {
   const p = window._prof, v = id => $(id).value.trim();
-  const b = { fatherName: v('pf_father'), motherName: v('pf_mother'), mobile: v('pf_mobile'), email: v('pf_email'), guardianName: v('pf_guardian'), parentsMobile: v('pf_pmobile'), addressCorrespondence: v('pf_caddr'), addressPermanent: v('pf_paddr') };
+  const b = { fatherName: v('pf_father'), motherName: v('pf_mother'), mobile: v('pf_mobile'), email: v('pf_email'), guardianName: v('pf_guardian'), parentsMobile: v('pf_pmobile'), addressCorrespondence: v('pf_caddr'), addressPermanent: v('pf_paddr'), dob: v('pf_dob'), hostelRequired: $('pf_hostel').value };
   const err = m => { $('pf_err').textContent = m; };
   if (!b.fatherName || !b.motherName) return err("Father's name and mother's name are required");
   if (!/^\d{10}$/.test(b.mobile) || !/^\d{10}$/.test(b.parentsMobile)) return err('Mobile numbers must be 10 digits');
   if (!/^\S+@\S+\.\S+$/.test(b.email)) return err('Enter a valid email ID');
   if (!b.addressCorrespondence || !b.addressPermanent) return err('Both addresses are required');
+  if (!b.dob) return err('Date of birth is required');
   try { const f = $('pf_photo').files[0]; if (f) b.photo = await readPhoto(f); await api('/students/' + p.id, 'PUT', b); openStudent(p.id); }
   catch (e) { err(e.error || e.message || 'Could not save'); }
 }
@@ -260,3 +261,127 @@ async function delDept(id) {
   if (!confirm('Delete this department?')) return;
   await api('/departments/' + id, 'DELETE'); go(cur);
 }
+
+// ===== Part 2 (Batch A): subjects, faculty, faculty attendance, hostel, ID card =====
+document.head.insertAdjacentHTML('beforeend', '<style>.idcard{print-color-adjust:exact;-webkit-print-color-adjust:exact}.idcard td{border:0}</style>');
+const enc = encodeURIComponent;
+const sortBatches = a => a.sort((x, y) => x == 'Unassigned' ? 1 : y == 'Unassigned' ? -1 : y - x);
+const subPage = (title, back, body) => { $('title').textContent = title; $('view').innerHTML = `<button class="sm" style="margin-bottom:16px" onclick="${back}">← Back</button><div id="subbody">${body}</div>`; };
+const vb = s => `<span class="badge ${s}">${s == 'APPROVED' ? 'VERIFIED' : s}</span>`;
+const myDept = async () => (await api('/departments')).find(x => x.name == me.department) || { name: me.department, semesters: 0 };
+
+// ---- HOD: Subject Allocation (per semester, applies to all students of that semester) ----
+VIEWS['Subject Allocation'] = async () => {
+  const d = await myDept(), n = d.semesters || 0;
+  if (!n) return '<div class="card">The total number of semesters is not set for your course. Ask the admin to set it in Department Management.</div>';
+  const subs = await api('/subjects?course=' + enc(d.name)); window._subs = subs; window._sdept = d.name;
+  let h = `<div class="card"><p>Course: <b>${d.name}</b>. Open a semester, fill in all its subjects and submit. They are allocated to every student of that semester.</p></div>`;
+  for (let y = 0; y < Math.ceil(n / 2); y++) {
+    const sems = [2 * y + 1, 2 * y + 2].filter(k => k <= n);
+    h += `<h3 style="margin:18px 0 10px">Year ${y + 1}</h3><div class="dtiles">${sems.map(k => `<div class="tile" onclick="openSubSem(${k})"><span>📚</span>Semester ${k}<small>${subs.filter(s => s.semester == k).length} subjects</small></div>`).join('')}</div>`;
+  }
+  return h;
+};
+const subRow = v => `<div class="subrow" style="display:flex;gap:8px;margin-bottom:8px"><input class="subin" placeholder="Subject name" value="${(v || '').replace(/"/g, '&quot;')}" style="margin:0"><button class="sm red" onclick="this.parentElement.remove()">✖</button></div>`;
+function openSubSem(k) {
+  const cur = window._subs.filter(s => s.semester == k).map(s => s.name);
+  subPage(`Subject Allocation › Semester ${k}`, "go('Subject Allocation')", `<div class="card"><h3>${window._sdept} — Semester ${k} (Year ${Math.ceil(k / 2)})</h3>
+    <p style="color:#64748b;font-size:13px;margin-bottom:12px">Add every subject of this semester, then submit. All students of Semester ${k} will get these subjects.</p>
+    <div id="subrows">${(cur.length ? cur : ['']).map(subRow).join('')}</div><button class="sm" onclick="addSubRow()">+ Add Subject</button>
+    <div class="err" id="se"></div><div style="margin-top:16px"><button class="green" onclick="saveSubjects(${k})">Submit</button></div></div>`);
+}
+function addSubRow() { $('subrows').insertAdjacentHTML('beforeend', subRow('')); }
+async function saveSubjects(k) {
+  const names = [...document.querySelectorAll('.subin')].map(i => i.value.trim()).filter(Boolean);
+  if (!names.length) { $('se').textContent = 'Add at least one subject'; return; }
+  if (new Set(names.map(n => n.toLowerCase())).size != names.length) { $('se').textContent = 'Subject names must be different'; return; }
+  await api('/subjects/bulk', 'POST', { course: window._sdept, semester: k, names });
+  go('Subject Allocation');
+}
+
+// ---- HOD: Faculty Management (click a name to assign subjects) ----
+const _facAdmin = VIEWS['Faculty Management'];
+VIEWS['Faculty Management'] = async () => {
+  if (me.role != 'HOD') return _facAdmin();
+  const [f, subs] = await Promise.all([api('/users?role=FACULTY'), api('/subjects?course=' + enc(me.department))]);
+  window._fac = f; window._subs = subs;
+  return `<div class="card"><h3>Faculty — ${me.department}</h3><p style="color:#64748b;font-size:13px;margin-bottom:10px">Click a faculty name to assign the subjects they will teach.</p><input placeholder="🔍 Search / Filter..." onkeyup="flt(this)">${table(['Faculty ID', 'Name', 'Subjects Assigned'],
+    f.map(u => `<tr><td><b>${u.username}</b></td><td><a href="#" onclick="openFaculty(${u.id});return false">${u.name}</a></td><td>${subs.filter(s => s.facultyUsername == u.username).length}</td></tr>`))}</div>`;
+};
+async function openFaculty(id) {
+  const u = window._fac.find(x => x.id == id), subs = await api('/subjects?course=' + enc(me.department)); window._subs = subs;
+  const mine = subs.filter(s => s.facultyUsername == u.username), free = subs.filter(s => s.facultyUsername != u.username);
+  subPage(`Faculty Management › ${u.name}`, "go('Faculty Management')", `<div class="card"><h3>${u.name}</h3><p style="color:#64748b">${u.username} • ${u.department}</p></div>
+    <div class="card"><h3>Assign a Subject</h3>${free.length ? `<div class="row"><div><label>Subject</label><select id="fsub">${free.map(s => `<option value="${s.id}">Semester ${s.semester} — ${s.name}${s.facultyName ? ' (now: ' + s.facultyName + ')' : ''}</option>`).join('')}</select></div><div><button onclick="assignSub(${u.id})">Assign</button></div></div>` : '<p>No subject is available. Create subjects in Subject Allocation first.</p>'}</div>
+    <div class="card"><h3>Assigned Subjects</h3>${table(['Semester', 'Subject', 'Action'], mine.map(s => `<tr><td>${s.semester}</td><td>${s.name}</td><td><button class="sm red" onclick="unassignSub(${s.id},${u.id})">Remove</button></td></tr>`))}</div>`);
+}
+async function assignSub(uid) {
+  const u = window._fac.find(x => x.id == uid);
+  await api(`/subjects/${$('fsub').value}/faculty`, 'PUT', { facultyUsername: u.username, facultyName: u.name }); openFaculty(uid);
+}
+async function unassignSub(sid, uid) { await api(`/subjects/${sid}/faculty`, 'PUT', { facultyUsername: '', facultyName: '' }); openFaculty(uid); }
+
+// ---- Student / Faculty: My Subjects ----
+VIEWS['My Subjects'] = async () => {
+  if (me.role == 'STUDENT') {
+    const p = await api('/students/' + me.id), subs = (await api('/subjects?course=' + enc(p.department))).filter(s => s.semester == p.semester);
+    return `<div class="card"><h3>${p.department} — ${p.semester ? 'Semester ' + p.semester : 'Semester not set'}</h3>${p.semester ? table(['Subject', 'Faculty'], subs.map(s => `<tr><td>${s.name}</td><td>${s.facultyName || '-'}</td></tr>`)) : ''}</div>`;
+  }
+  const subs = (await api('/subjects?course=' + enc(me.department))).filter(s => s.facultyUsername == me.username);
+  return `<div class="card"><h3>Subjects assigned to me</h3>${table(['Semester', 'Subject'], subs.map(s => `<tr><td>${s.semester}</td><td>${s.name}</td></tr>`))}</div>`;
+};
+
+// ---- Faculty attendance: faculty marks, HOD verifies or rejects ----
+const today = () => new Date().toISOString().slice(0, 10);
+VIEWS['Mark My Attendance'] = async () => {
+  const mine = (await api('/records?module=FacultyAttendance')).filter(r => r.owner == me.username).map(r => ({ ...r, d: JSON.parse(r.data || '{}') })).sort((a, b) => b.id - a.id);
+  const done = mine.some(r => r.d.date == today());
+  return `<div class="card"><h3>Today: ${today()}</h3>${done ? '<p>✅ Your attendance for today is already submitted.</p>' : '<button class="green" onclick="markFac()">Mark Present</button>'}<p style="font-size:13px;color:#64748b;margin-top:8px">Your HOD verifies every entry.</p></div>
+    <div class="card"><h3>My Records</h3>${table(['Date', 'Time', 'Status'], mine.map(r => `<tr><td>${r.d.date}</td><td>${r.d.time || '-'}</td><td>${vb(r.status)}</td></tr>`))}</div>`;
+};
+async function markFac() {
+  await api('/records', 'POST', { module: 'FacultyAttendance', owner: me.username, ownerName: me.name, ownerRole: me.role, data: JSON.stringify({ faculty_username: me.username, date: today(), time: new Date().toTimeString().slice(0, 5) }) });
+  go(cur);
+}
+VIEWS['Faculty Attendance'] = async () => {
+  const rs = (await api('/records?module=FacultyAttendance')).map(r => ({ ...r, d: JSON.parse(r.data || '{}') })).sort((a, b) => b.id - a.id);
+  return `<div class="grid"><div class="stat"><b>${rs.filter(r => r.status == 'PENDING').length}</b><small>Waiting for verification</small></div></div><div class="card"><input placeholder="🔍 Search / Filter..." onkeyup="flt(this)">${table(['Date', 'Time', 'Faculty ID', 'Name', 'Status', 'Action'],
+    rs.map(r => `<tr><td>${r.d.date}</td><td>${r.d.time || '-'}</td><td>${r.d.faculty_username}</td><td>${r.ownerName}</td><td>${vb(r.status)}</td><td>${r.status == 'PENDING' ? `<button class="sm green" onclick="facAtt(${r.id},'APPROVED')">Verify</button> <button class="sm red" onclick="facAtt(${r.id},'REJECTED')">Reject</button>` : '-'}</td></tr>`))}</div>`;
+};
+async function facAtt(id, s) { await api(`/records/${id}/status/${s}`, 'PUT'); go(cur); }
+
+// ---- Hostel: opted in from the student profile; warden allots rooms; HOD and Admin see them ----
+VIEWS['Hostel Management'] = async () => {
+  if (me.role == 'STUDENT') {
+    const p = await api('/students/' + me.id);
+    return `<div class="card"><h3>My Hostel</h3><table class="dl"><tr><td>Hostel required</td><td>${p.hostelRequired ? 'Yes' : 'No'}</td></tr><tr><td>Room No</td><td>${p.roomNo || (p.hostelRequired ? 'Not allotted yet' : '-')}</td></tr></table></div>`;
+  }
+  const st = (await api('/users?role=STUDENT')).filter(s => s.hostelRequired);
+  window._hst = st; window._hb = sortBatches([...new Set(st.map(batchOf))]);
+  return `<div class="dtiles">${window._hb.map((b, i) => `<div class="tile" onclick="openHostelBatch(${i})"><span>🛏️</span>${bl(b)}<small>${st.filter(s => batchOf(s) == b).length} students</small></div>`).join('') || '<div class="card">No student has opted for the hostel yet. The admin sets this in the student profile (Edit).</div>'}</div>`;
+};
+function openHostelBatch(i) {
+  const b = window._hb[i], w = me.role == 'WARDEN', r = window._hst.filter(s => batchOf(s) == b);
+  subPage(`Hostel Management › ${bl(b)}`, "go('Hostel Management')", `<div class="card"><h3>${bl(b)} — ${r.length} Student(s)</h3><input placeholder="🔍 Search / Filter..." onkeyup="flt(this)">${table(['Student ID', 'Name', 'Course', 'Academic Session', 'Room No'],
+    r.map(s => `<tr><td><b>${s.username}</b></td><td>${s.name}</td><td>${s.department}</td><td>${s.academicSession || '-'}</td><td>${w ? `<div style="display:flex;gap:6px;align-items:center"><input id="room_${s.id}" value="${s.roomNo || ''}" placeholder="Room no" style="margin:0;width:110px"><button class="sm green" onclick="saveRoom(${s.id})">Save</button><span id="rs_${s.id}"></span></div>` : (s.roomNo || '<i>Not allotted</i>')}</td></tr>`))}</div>`);
+}
+async function saveRoom(id) {
+  const v = $('room_' + id).value.trim();
+  await api('/students/' + id, 'PUT', { roomNo: v }); $('rs_' + id).textContent = '✓ Saved';
+}
+
+// ---- Student ID card: name, academic session, student ID, course ----
+VIEWS['Digital Student ID Card'] = async () => {
+  const p = await api('/students/' + me.id);
+  const pic = p.photo ? `<img src="${p.photo}" style="width:90px;height:110px;object-fit:cover;border-radius:8px;border:3px solid #fff;display:block;margin:10px auto">` : `<div class="av">${p.name[0]}</div>`;
+  const r = (l, v) => `<tr><td style="padding:3px 10px;color:#bfdbfe">${l}</td><td style="padding:3px 0">${v || '-'}</td></tr>`;
+  return `<div class="idcard"><h3>🎓 Smart Campus</h3>${pic}<h2>${p.name}</h2><table style="color:#fff;font-size:14px;margin:8px auto;text-align:left">${r('Student ID', p.username)}${r('Course', p.department)}${r('Academic Session', p.academicSession)}</table></div><br><button onclick="window.print()">🖨️ Print</button>`;
+};
+
+// ---- Menus: remove Department Management from HOD/Faculty, add the new pages ----
+MENU.HOD = MENU.HOD.filter(t => t != 'Department Management');
+MENU.FACULTY = MENU.FACULTY.filter(t => t != 'Department Management');
+if (!MENU.FACULTY.includes('Mark My Attendance')) MENU.FACULTY.splice(MENU.FACULTY.indexOf('Dashboard') + 1, 0, 'Mark My Attendance');
+if (!MENU.HOD.includes('Hostel Management')) MENU.HOD.splice(MENU.HOD.indexOf('Library Management') + 1, 0, 'Hostel Management');
+$('menu').innerHTML = MENU[me.role].map(t => t[0] == '#' ? `<div class="grp">${t.slice(1)}</div>` : `<a data-t="${t}" onclick="go(this.dataset.t)">${t}</a>`).join('');
+document.querySelectorAll('#menu a').forEach(a => a.classList.toggle('on', a.dataset.t == cur));

@@ -22,5 +22,8 @@ public class User {
     public String parentsMobile;
     public String addressCorrespondence;
     public String addressPermanent;
+    public String dob;
+    public Boolean hostelRequired;
+    public String roomNo;
     @JsonIgnore @Column(length = 300000) public String photo;
 }

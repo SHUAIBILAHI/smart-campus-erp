@@ -14,6 +14,7 @@
       const users = await get('/api/users'), inDept = new Set(users.filter(u => u.department === dept).map(u => u.username));
       switch (path) {
         case 'users': return reply(data.filter(u => u.department === dept), r);
+        case 'subjects': return reply(data.filter(s => s.course === dept), r);
         case 'departments': return reply(data.filter(d => d.name === dept), r);
         case 'attendance/all': return reply(data.filter(a => inDept.has(a.studentUsername)), r);
         case 'leaves': return reply(data.filter(l => inDept.has(l.applicant)), r);
